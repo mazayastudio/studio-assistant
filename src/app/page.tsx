@@ -6,15 +6,6 @@ import TypingIndicator from "@/components/TypingIndicator";
 import ChatInput from "@/components/ChatInput";
 import ChatSidebar, { ChatHistoryEntry } from "@/components/ChatSidebar";
 
-// Simulated assistant responses
-const SIMULATED_RESPONSES = [
-  "That's a great question! Let me think about that for a moment.\n\nBased on my analysis, I'd suggest starting with the core structure first, then gradually adding more features. This approach gives you a solid foundation to build upon.",
-  "I understand what you're looking for. Here's what I recommend:\n\n1. First, outline your main objectives\n2. Break them down into smaller, manageable tasks\n3. Prioritize based on impact and effort\n\nWould you like me to elaborate on any of these steps?",
-  "Interesting perspective! I've considered several angles on this:\n\n• The first approach focuses on simplicity and speed\n• The second approach prioritizes scalability\n• The third balances both concerns\n\nEach has its trade-offs. What matters most to you in this context?",
-  "Great idea! Let me help you refine that further.\n\nThe key insight here is that consistency matters more than perfection. Start with a minimal viable version and iterate based on feedback. This way, you'll make steady progress without getting stuck on details too early.",
-  "I'd be happy to help with that! Here's a structured approach:\n\nPhase 1: Research and discovery\nPhase 2: Planning and design\nPhase 3: Implementation\nPhase 4: Testing and refinement\n\nShall we dive into any specific phase?",
-];
-
 interface ChatSession {
   id: string;
   messages: Message[];
@@ -31,10 +22,6 @@ function formatTime(date: Date) {
     minute: "2-digit",
     hour12: true,
   });
-}
-
-function getResponseIndex(messageCount: number) {
-  return messageCount % SIMULATED_RESPONSES.length;
 }
 
 export default function Home() {
@@ -67,6 +54,19 @@ export default function Home() {
     };
   });
 
+  // ─── Helper: append a message to a session ───
+  const appendMessage = useCallback(
+    (chatId: string, message: Message) => {
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === chatId ? { ...s, messages: [...s.messages, message] } : s
+        )
+      );
+    },
+    []
+  );
+
+  // ─── New Chat ───
   const handleNewChat = useCallback(() => {
     const newSession: ChatSession = {
       id: generateId(),
@@ -79,7 +79,8 @@ export default function Home() {
     setIsLoading(false);
   }, []);
 
-  const handleSend = useCallback(() => {
+  // ─── Send Message ───
+  const handleSend = useCallback(async () => {
     if (!inputValue.trim() || isLoading) return;
 
     let currentChatId = activeChatId;
@@ -105,44 +106,95 @@ export default function Home() {
 
     const chatIdForResponse = currentChatId;
 
-    setSessions((prev) =>
-      prev.map((s) =>
-        s.id === chatIdForResponse
-          ? { ...s, messages: [...s.messages, userMessage] }
-          : s
-      )
-    );
+    // Get current messages for this session to send as history
+    const currentSession = sessions.find((s) => s.id === chatIdForResponse);
+    const currentMessages = currentSession?.messages ?? [];
 
+    // Build the messages payload for the API
+    const apiMessages = [
+      ...currentMessages.map((m) => ({ role: m.role, content: m.content })),
+      { role: userMessage.role, content: userMessage.content },
+    ];
+
+    appendMessage(chatIdForResponse, userMessage);
     setInputValue("");
     setIsLoading(true);
 
-    // Simulate assistant response after delay
-    setTimeout(() => {
-      const assistantMessage: Message = {
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: apiMessages }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        // Build an error message to show in the chat
+        const errorCode = data.error?.code ?? "UNKNOWN_ERROR";
+        const errorMsg = data.error?.message ?? "An unknown error occurred.";
+
+        let userFacingMessage: string;
+
+        switch (errorCode) {
+          case "SERVICE_UNAVAILABLE":
+            userFacingMessage =
+              "⚠️ **Service Not Configured**\n\nThe AI service is not configured yet. Please set your `OPENAI_API_KEY` in the `.env.local` file and restart the dev server.";
+            break;
+          case "RATE_LIMITED":
+            userFacingMessage =
+              "⏳ **Rate Limited**\n\nToo many requests. Please wait a moment and try again.";
+            break;
+          case "LLM_ERROR":
+            userFacingMessage =
+              `❌ **AI Error**\n\n${errorMsg}`;
+            break;
+          case "MESSAGE_TOO_LONG":
+            userFacingMessage =
+              "📏 **Message Too Long**\n\nYour message exceeds the maximum allowed length. Please shorten it and try again.";
+            break;
+          case "INVALID_REQUEST":
+          case "INVALID_MESSAGE_FORMAT":
+            userFacingMessage =
+              `⚠️ **Invalid Request**\n\n${errorMsg}`;
+            break;
+          default:
+            userFacingMessage =
+              `❌ **Error**\n\nSomething went wrong: ${errorMsg}`;
+        }
+
+        const errorMessage: Message = {
+          id: generateId(),
+          role: "assistant",
+          content: userFacingMessage,
+          timestamp: formatTime(new Date()),
+        };
+        appendMessage(chatIdForResponse, errorMessage);
+      } else {
+        // Success — append assistant response
+        const assistantMessage: Message = {
+          id: generateId(),
+          role: "assistant",
+          content: data.data.content,
+          timestamp: formatTime(new Date()),
+        };
+        appendMessage(chatIdForResponse, assistantMessage);
+      }
+    } catch (networkError) {
+      // Network-level failure (server down, no internet, etc.)
+      console.error("[Chat] Network error:", networkError);
+      const errorMessage: Message = {
         id: generateId(),
         role: "assistant",
         content:
-          SIMULATED_RESPONSES[
-            getResponseIndex(
-              (
-                sessions.find((s) => s.id === chatIdForResponse)?.messages
-                  .length ?? 0
-              ) + 1
-            )
-          ],
+          "🔌 **Connection Error**\n\nUnable to reach the server. Please check your internet connection and try again.",
         timestamp: formatTime(new Date()),
       };
-
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === chatIdForResponse
-            ? { ...s, messages: [...s.messages, assistantMessage] }
-            : s
-        )
-      );
+      appendMessage(chatIdForResponse, errorMessage);
+    } finally {
       setIsLoading(false);
-    }, 1500 + Math.random() * 1000);
-  }, [inputValue, isLoading, activeChatId, sessions]);
+    }
+  }, [inputValue, isLoading, activeChatId, sessions, appendMessage]);
 
   return (
     <div className="flex h-dvh w-full overflow-hidden">
