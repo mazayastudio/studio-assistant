@@ -40,29 +40,35 @@ function loadFromSession<T>(key: string, fallback: T): T {
 }
 
 export default function Home() {
-  const [sessions, setSessions] = useState<ChatSession[]>(() =>
-    loadFromSession(STORAGE_KEYS.sessions, [])
-  );
-  const [activeChatId, setActiveChatId] = useState<string | null>(() =>
-    loadFromSession(STORAGE_KEYS.activeChatId, null)
-  );
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // ─── Load from sessionStorage on mount ───
+  useEffect(() => {
+    setSessions(loadFromSession(STORAGE_KEYS.sessions, []));
+    setActiveChatId(loadFromSession(STORAGE_KEYS.activeChatId, null));
+    setIsClient(true);
+  }, []);
 
   // ─── Persist to sessionStorage on changes ───
   useEffect(() => {
+    if (!isClient) return;
     try {
       sessionStorage.setItem(STORAGE_KEYS.sessions, JSON.stringify(sessions));
     } catch { /* storage full — silently ignore */ }
-  }, [sessions]);
+  }, [sessions, isClient]);
 
   useEffect(() => {
+    if (!isClient) return;
     try {
       sessionStorage.setItem(STORAGE_KEYS.activeChatId, JSON.stringify(activeChatId));
     } catch { /* silently ignore */ }
-  }, [activeChatId]);
+  }, [activeChatId, isClient]);
 
   // Get active session messages
   const activeSession = sessions.find((s) => s.id === activeChatId);
@@ -227,9 +233,21 @@ export default function Home() {
       setIsLoading(false);
     }
   }, [inputValue, isLoading, activeChatId, sessions, appendMessage]);
+  if (!isClient) {
+    return (
+      <div className="flex h-dvh w-full items-center justify-center bg-zinc-950">
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100">
+             <span className="text-xl font-bold text-zinc-900">SA</span>
+          </div>
+          <span className="text-sm text-zinc-500">Loading Studio Assistant...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-dvh w-full overflow-hidden">
+    <div className="flex h-dvh w-full overflow-hidden bg-zinc-950">
       {/* Sidebar */}
       <ChatSidebar
         chatHistory={chatHistory}
@@ -244,91 +262,58 @@ export default function Home() {
       />
 
       {/* Main Chat Area */}
-      <main className="flex flex-1 flex-col overflow-hidden" style={{ background: "var(--bg-primary)" }}>
-        {/* Top Bar */}
-        <header
-          className="flex items-center gap-3 px-4 py-3 md:px-6"
-          style={{ borderBottom: "1px solid var(--border-subtle)" }}
-        >
-          {/* Mobile hamburger */}
+      <main className="flex flex-1 flex-col overflow-hidden bg-zinc-950">
+        {/* Top Bar — minimal, only shows on mobile for the menu toggle */}
+        <header className="flex items-center gap-3 bg-zinc-950 px-4 py-3 md:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors md:hidden"
-            style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
             aria-label="Open sidebar"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 12H21" />
               <path d="M3 6H21" />
               <path d="M3 18H21" />
             </svg>
           </button>
-
-          <div className="flex flex-col">
-            <h1 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-              {activeSession
-                ? messages[0]?.content.slice(0, 30) +
-                  (messages[0]?.content.length > 30 ? "…" : "")
-                : "Studio Assistant"}
-            </h1>
-            <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-              {isLoading ? "Typing…" : activeSession ? `${messages.length} messages` : "Start a conversation"}
-            </span>
-          </div>
+          <span className="text-sm font-medium text-zinc-300">Studio Assistant</span>
         </header>
 
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 md:px-6">
+        {/* Messages Area — ChatGPT style: centered, wide, generous scroll area */}
+        <div className="flex-1 overflow-y-auto bg-zinc-950">
           {messages.length === 0 && !isLoading ? (
-            /* Empty state */
-            <div className="flex h-full flex-col items-center justify-center text-center animate-fade-in">
-              <div
-                className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl"
-                style={{ background: "var(--accent-gradient)", boxShadow: "var(--shadow-glow)" }}
-              >
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-              </div>
-              <h2 className="mb-2 text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
-                Welcome to Studio Assistant
+            /* Empty / welcome state — ChatGPT style */
+            <div className="flex h-full flex-col items-center justify-center px-4 animate-fade-in">
+              <h2 className="mb-8 text-3xl font-semibold tracking-tight text-zinc-100">
+                How can I help you today?
               </h2>
-              <p className="max-w-md text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                Your AI-powered creative companion. Ask anything — brainstorm ideas,
-                get feedback, or plan your next project.
-              </p>
-              <div className="mt-8 flex flex-wrap justify-center gap-2">
+              <div className="grid w-full max-w-2xl grid-cols-2 gap-3 md:grid-cols-2">
                 {[
-                  "💡 Brainstorm ideas",
-                  "📝 Plan a project",
-                  "🎨 Design feedback",
-                  "🔧 Debug a problem",
-                ].map((suggestion) => (
+                  { icon: "💡", label: "Brainstorm ideas", sub: "for a project or campaign" },
+                  { icon: "📝", label: "Plan a project", sub: "with steps and milestones" },
+                  { icon: "🎨", label: "Design feedback", sub: "on visuals or UI" },
+                  { icon: "🔧", label: "Debug a problem", sub: "in code or logic" },
+                ].map((item) => (
                   <button
-                    key={suggestion}
-                    onClick={() => {
-                      setInputValue(suggestion.slice(2).trim());
-                    }}
-                    className="rounded-xl px-4 py-2 text-xs font-medium transition-all duration-200 hover:scale-105"
-                    style={{
-                      background: "var(--bg-tertiary)",
-                      color: "var(--text-secondary)",
-                      border: "1px solid var(--border-color)",
-                    }}
+                    key={item.label}
+                    onClick={() => setInputValue(item.label)}
+                    className="flex flex-col items-start gap-1 rounded-2xl border border-zinc-700 bg-zinc-900 px-5 py-4 text-left transition-colors hover:border-zinc-600 hover:bg-zinc-800"
                   >
-                    {suggestion}
+                    <span className="text-xl">{item.icon}</span>
+                    <span className="text-[15px] font-medium text-zinc-200">{item.label}</span>
+                    <span className="text-[13px] text-zinc-500">{item.sub}</span>
                   </button>
                 ))}
               </div>
             </div>
           ) : (
-            /* Message list */
-            <div className="mx-auto flex max-w-3xl flex-col gap-5">
+            /* Message list — centered like ChatGPT */
+            <div className="mx-auto flex max-w-3xl flex-col px-4 py-10 md:px-6">
               {messages.map((msg: Message) => (
                 <ChatMessage key={msg.id} message={msg} />
               ))}
               {isLoading && <TypingIndicator />}
-              <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} className="h-6" />
             </div>
           )}
         </div>
