@@ -1,84 +1,88 @@
 # Studio Assistant
 
-Studio Assistant adalah aplikasi obrolan (chat) berbasis Artificial Intelligence (AI) yang dibangun menggunakan **Next.js 14** dan antarmuka (UI) gaya *Dark Mode* modern yang terinspirasi dari ChatGPT. Aplikasi ini mengintegrasikan **OpenAI API** untuk memberikan asisten percakapan yang cerdas, cepat, dan interaktif.
+Studio Assistant is an AI-powered chat application built with **Next.js 14** featuring a modern, sleek Dark Mode UI inspired by ChatGPT. The application integrates the **OpenAI API** to provide an intelligent, fast, and highly interactive conversational assistant.
 
-## ✨ Fitur Utama
+## ✨ Key Features
 
-- **Antarmuka (UI) ala ChatGPT**: Desain minimalis nan elegan menggunakan Tailwind CSS (palet Zinc), lengkap dengan *sidebar* sempit, pemisah antar obrolan yang mulus, dan adaptasi untuk *mobile*.
-- **Streaming Responses**: Menggunakan **Web Streams API** untuk mencetak setiap respons AI secara *real-time* (efek mengetik), tanpa perlu menunggu seluruh teks selesai di-generate oleh server.
-- **Model Settings (Parameter yang Dapat Diatur)**: 
-  - Tersedia menu **Settings** (ikon roda gigi) untuk menyesuaikan parameter AI kapan saja.
-  - **Temperature**: Mengatur tingkat kreativitas dan keacakan respons (0.0 - 2.0).
-  - **Max Tokens**: Mengatur batasan panjang token respons yang dihasilkan (100 - 4096).
-- **Multiple Conversation Threads**: Kemampuan untuk membuat banyak percakapan baru atau kembali ke percakapan lama kapan saja melalui *sidebar*.
-- **Local State Persistence**: Riwayat obrolan (chat history), percakapan aktif, beserta pengaturan parameter AI disimpan sementara secara lokal *(sessionStorage)* sehingga tidak hilang saat pengguna melakukan *refresh* halaman di sesi yang sama.
-- **Markdown Rendering**: Kemampuan AI untuk menguraikan format teks *Markdown*, memastikan elemen seperti blok kode (*code blocks*), cetak tebal (*bold*), tabel, dan daftar (*lists*) diraster dengan rapi.
-- **Export to Markdown**: Fitur untuk mengekspor percakapan aktif ke dalam *file* berformat `.md`, sangat berguna untuk menyimpan dokumentasi, kode, atau informasi penting lain secara luring (*offline*).
-- **Custom Slash Commands 🚀**: Router khusus untuk perintah (*prompts*) rahasia:
-  - `/write-dialogue [karakter] [skenario]`: AI akan otomatis mengambil peran sebagai penulis narasi *game* (menyediakan dialog berkualitas).
-  - `/asset-description [tipe] [style]`: AI akan berfokus pada detail deskripsi visual untuk diberikan ke tim Art/Desain.
+- **ChatGPT-Style UI**: Minimalist and elegant design using Tailwind CSS (Zinc palette), complete with a clean sidebar, seamless chat separators, and full mobile responsiveness.
+- **Streaming Responses**: Utilizes the **Web Streams API** to render AI responses in real-time (typing effect), eliminating the need to wait for the entire response to generate.
+- **Adjustable Model Settings**:
+  - A settings modal (accessible via the gear icon) allows you to tweak AI parameters on the fly.
+  - **Temperature**: Controls the creativity and randomness of the responses (0.0 - 2.0).
+  - **Max Tokens**: Sets the limit for the maximum length of the generated response (100 - 4096).
+- **Multiple Conversation Threads**: Ability to create new chats or revisit previous conversations at any time from the sidebar.
+- **Local State Persistence**: Chat history, active sessions, and AI parameter settings are persisted locally using `sessionStorage`, ensuring data isn't lost upon page refresh within the same session.
+- **Markdown Rendering**: The AI's responses are parsed as Markdown, beautifully rendering code blocks, bold text, tables, and lists.
+- **Export to Markdown**: Quickly export your active conversation into a structured `.md` file, useful for saving documentation, code snippets, or offline reading.
+- **Custom Slash Commands 🚀**: Specialized routing for hidden prompts:
+  - `/write-dialogue [character] [scenario]`: The AI acts as a professional game narrative writer.
+  - `/asset-description [type] [style]`: The AI focuses on highly detailed visual descriptions intended for Art/Design teams.
 
 ---
 
-## 🛠️ Stack Teknologi
+## 🛠️ Tech Stack
 
-- **Framework**: [Next.js 14](https://nextjs.org/) (App Directory / React Server Components)
-- **Komponen & State**: React (`useState`, `useEffect`, `useCallback`)
+- **Framework**: [Next.js 14](https://nextjs.org/) (App Router / React Server Components)
+- **State Management**: React Hooks (`useState`, `useEffect`, `useCallback`)
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/)
 - **AI Integration**: [OpenAI Node SDK](https://github.com/openai/openai-node)
-- **Markdown**: `react-markdown` dan `remark-gfm`
+- **Markdown**: `react-markdown` and `remark-gfm`
 
 ---
 
-## 🚀 Prasyarat & Cara Instalasi
+## 🤖 AI Tools Used
 
-Pastikan Anda telah menginstal **Node.js** (versi 18+) dan paket manajer seperti `npm`, `yarn`, `pnpm`, atau `bun`.
+This project was built rapidly by leveraging advanced AI tools to accelerate development, plan architecture, and verify functionality.
 
-### 1. Kloning Repositori
+### **1. Antigravity (Google DeepMind AI Assistant)**
+*   **How it was used**: Acted as the primary autonomous pair-programming agent. It analyzed the initial codebase, resolved Next.js hydration hydration errors, refactored the entire UI using Tailwind CSS to match the requested ChatGPT aesthetic, and implemented complex features like Web Streams and Markdown Export.
+*   **Impact on Workflow**: Drastically reduced development time. Instead of manually writing boilerplate React code or debugging component lifecycles, I provided high-level objectives (e.g., "Implement a Settings modal to control temperature"), and the agent autonomously wrote the code, ran terminal commands (`npm run lint`), and committed the changes.
+
+### **2. Browser Subagent (Visual Verification)**
+*   **How it was used**: An autonomous browser testing agent within Antigravity that spun up a headless Chrome instance to visually interact with `localhost:3000`. It physically clicked the Settings icon, typed prompts into the chat, and captured screenshots to verify the real-time text streaming and modal rendering.
+*   **Impact on Workflow**: Eliminated the need for manual QA. The agent proved visually that the streaming tokens were rendering correctly without the developer having to context-switch to a browser window.
+
+### **3. OpenAI API (gpt-4o-mini)**
+*   **How it was used**: Powering the core feature of the application. It was integrated via the official Node SDK to handle the chat completions, utilizing the `stream: true` flag to return native Server-Sent Events (SSE).
+*   **Impact on Workflow**: Provided the underlying intelligence of the "Studio Assistant." By utilizing the OpenAI API, we seamlessly brought advanced LLM capabilities (like custom system prompts for `/write-dialogue`) into a custom-built interface in a matter of minutes.
+
+By combining an autonomous coding agent (Antigravity) to write and test the infrastructure with a powerful LLM (OpenAI) driving the application's logic, we delivered a highly polished, production-ready feature set within an extremely constrained timeframe.
+
+---
+
+## 🚀 Getting Started
+
+Ensure you have **Node.js** (v18+) and your preferred package manager (`npm`, `yarn`, `pnpm`, or `bun`) installed.
+
+### 1. Clone the Repository
 ```bash
-git clone <url-repo-anda>
+git clone <your-repo-url>
 cd 3-STUDIO-ASSISTANT
 ```
 
-### 2. Instal Dependensi
+### 2. Install Dependencies
 ```bash
 npm install
-# atau
-yarn install
-# atau
-pnpm install
 ```
 
-### 3. Konfigurasi Environment Variables
-Buat *file* bernama `.env.local` di *root* direktori (sejajar dengan `package.json`). Tambahkan kunci API OpenAI Anda:
+### 3. Environment Variables
+Create a `.env.local` file in the root directory. Add your OpenAI API key:
 ```env
-OPENAI_API_KEY="sk-kunci-rahasia-openai-anda"
+OPENAI_API_KEY="sk-your-openai-secret-key"
 ```
 
-### 4. Jalankan Aplikasi (Mode Development)
+### 4. Run the Development Server
 ```bash
 npm run dev
-# atau
-yarn dev
-# atau
-pnpm dev
 ```
-Buka peramban (browser) dan buka alamat **[http://localhost:3000](http://localhost:3000)**. (Port bisa saja menjadi `:3001` jika port `3000` sedang digunakan, lihat pada terminal).
+Open your browser and navigate to **[http://localhost:3000](http://localhost:3000)** (or `:3001` depending on port availability indicated in your terminal).
 
 ---
 
-## 📂 Struktur Proyek
+## 📂 Project Structure
 
-- `src/app/page.tsx`: Halaman utama (*client component*) yang menyertakan tata letak UI, *sidebar*, area input obrolan, *settings modal*, serta manajemen status peramban (*browser state*).
-- `src/app/api/chat/route.ts`: Rute API sisi server yang melayani semua permintaan ke model bahasa. Menghasilkan stream mentah (`ReadableStream`) berbasis teks untuk frontend.
-- `src/lib/llm.ts`: Penghubung logika ke *SDK* OpenAI, di mana *streaming* diinisialisasi dan pesan direstrukturisasi.
-- `src/lib/commands.ts`: Modul yang mem-parsing respons untuk mengenali `/write-dialogue` atau `/asset-description` dan menyuntikkan *System Prompts* kustom.
-- `src/components/`: Komponen antarmuka yang dapat digunakan kembali, seperti `ChatMessage`, `ChatInput`, dan `ChatSidebar`.
-
----
-
-## 🎨 Menyesuaikan Tema (Theme)
-
-Tema yang digunakan dalam proyek ini berpusat pada palet `zinc` bawaan Tailwind CSS untuk melahirkan tampilan gelap netral seperti ChatGPT. Apabila Anda ingin menyesuaikan nuansa gelap, Anda dapat mengganti semua referensi warna `zinc` dengan `slate` atau `gray`.
-
-*Dirancang dengan antarmuka dan pengalaman pengguna (UI/UX) sebagai prioritas, Studio Assistant siap membantu memfasilitasi setiap kreativitas Anda!*
+- `src/app/page.tsx`: The main client component containing the UI layout, sidebar, chat input, settings modal, and browser state management.
+- `src/app/api/chat/route.ts`: The server-side API route that handles requests to the language model. It streams raw text (`ReadableStream`) back to the frontend.
+- `src/lib/llm.ts`: The interface to the OpenAI SDK where the streaming is initialized and messages are structured.
+- `src/lib/commands.ts`: Parses user input to detect `/write-dialogue` or `/asset-description` and injects the appropriate System Prompts.
+- `src/components/`: Reusable UI components including `ChatMessage`, `ChatInput`, and `ChatSidebar`.
