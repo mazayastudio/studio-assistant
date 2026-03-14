@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendChatMessage, ChatMessageInput } from "@/lib/llm";
+import { sendChatMessageStream, ChatMessageInput } from "@/lib/llm";
 import { AppError, ValidationError } from "@/lib/errors";
 import { parseCommand } from "@/lib/commands";
 
@@ -26,13 +26,6 @@ interface ApiError {
 
 type ApiResponse = ApiSuccess | ApiError;
 
-function successResponse(content: string, status = 200): NextResponse<ApiResponse> {
-  return NextResponse.json(
-    { success: true, data: { role: "assistant" as const, content } },
-    { status }
-  );
-}
-
 function errorResponse(code: string, message: string, status: number): NextResponse<ApiResponse> {
   return NextResponse.json(
     { success: false, error: { code, message } },
@@ -44,12 +37,18 @@ function errorResponse(code: string, message: string, status: number): NextRespo
 // Validation
 // ────────────────────────────────────────────
 
-function validateRequestBody(body: unknown): ChatMessageInput[] {
+interface ValidatedChatBody {
+  messages: ChatMessageInput[];
+  temperature: number;
+  maxTokens: number;
+}
+
+function validateRequestBody(body: unknown): ValidatedChatBody {
   if (!body || typeof body !== "object") {
     throw new ValidationError("Request body must be a JSON object.");
   }
 
-  const { messages } = body as Record<string, unknown>;
+  const { messages, temperature, maxTokens } = body as Record<string, unknown>;
 
   if (!messages) {
     throw new ValidationError("The 'messages' field is required.");
@@ -57,6 +56,24 @@ function validateRequestBody(body: unknown): ChatMessageInput[] {
 
   if (!Array.isArray(messages)) {
     throw new ValidationError("The 'messages' field must be an array.");
+  }
+
+  // Validate parameters if present
+  let validTemp = 0.7;
+  let validTokens = 1024;
+
+  if (temperature !== undefined) {
+    if (typeof temperature !== "number" || temperature < 0 || temperature > 2) {
+      throw new ValidationError("Temperature must be a number between 0 and 2.");
+    }
+    validTemp = temperature;
+  }
+
+  if (maxTokens !== undefined) {
+    if (typeof maxTokens !== "number" || maxTokens < 1 || maxTokens > 4096) {
+      throw new ValidationError("maxTokens must be a number between 1 and 4096.");
+    }
+    validTokens = maxTokens;
   }
 
   if (messages.length === 0) {
@@ -114,7 +131,7 @@ function validateRequestBody(body: unknown): ChatMessageInput[] {
     );
   }
 
-  return messages as ChatMessageInput[];
+  return { messages: messages as ChatMessageInput[], temperature: validTemp, maxTokens: validTokens };
 }
 
 // ────────────────────────────────────────────
@@ -132,7 +149,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     }
 
     // 2. Validate
-    const messages = validateRequestBody(body);
+    const validated = validateRequestBody(body);
+    const messages = validated.messages;
+    const { temperature, maxTokens } = validated;
 
     // 3. Detect slash commands in the last user message
     const lastMessage = messages[messages.length - 1];
@@ -142,7 +161,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     let systemPromptOverride: string | undefined;
 
     if (parsed) {
-      // Replace the last user message content with the parsed version
       finalMessages = [
         ...messages.slice(0, -1),
         { ...lastMessage, content: parsed.userContent },
@@ -150,11 +168,23 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       systemPromptOverride = parsed.systemPrompt;
     }
 
-    // 4. Call LLM (with optional command-specific system prompt)
-    const assistantContent = await sendChatMessage(finalMessages, systemPromptOverride);
+    // 4. Call LLM to get a ReadableStream
+    const stream = await sendChatMessageStream(
+      finalMessages,
+      temperature,
+      maxTokens,
+      systemPromptOverride
+    );
 
-    // 5. Return success
-    return successResponse(assistantContent);
+    // 5. Return the stream directly with standard text/event-stream content type
+    return new Response(stream, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+      },
+    }) as any; // Cast because our generic NextResponse type expects ApiResponse wrapper for errors
   } catch (error: unknown) {
     // Handle our typed errors
     if (error instanceof AppError) {

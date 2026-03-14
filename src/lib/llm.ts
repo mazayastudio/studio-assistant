@@ -34,10 +34,12 @@ const SYSTEM_PROMPT =
  * - Reads `OPENAI_API_KEY` from `process.env` at **call time** (never cached).
  * - Throws typed errors so the route handler can map them to HTTP statuses.
  */
-export async function sendChatMessage(
+export async function sendChatMessageStream(
   messages: ChatMessageInput[],
+  temperature: number = 0.7,
+  maxTokens: number = 1024,
   systemPromptOverride?: string
-): Promise<string> {
+): Promise<ReadableStream> {
   // 1. Guard: API key must be present
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || apiKey.trim() === "" || apiKey === "your_openai_api_key_here") {
@@ -61,23 +63,34 @@ export async function sendChatMessage(
   ];
 
   try {
-    // 4. Call OpenAI Chat Completions API
-    const completion = await openai.chat.completions.create({
+    // 4. Call OpenAI Chat Completions API with streaming enabled
+    const stream = await openai.chat.completions.create({
       model: MODEL_NAME,
       messages: openaiMessages,
-      temperature: 0.7,
-      max_tokens: 1024,
+      temperature,
+      max_tokens: maxTokens,
+      stream: true,
     });
 
-    const text = completion.choices[0]?.message?.content;
-
-    if (!text || text.trim() === "") {
-      throw new LLMApiError(
-        "The language model returned an empty response. This may be due to content safety filters."
-      );
-    }
-
-    return text;
+    // 5. Convert async iterable to ReadableStream
+    return new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of stream) {
+            const content = chunk.choices[0]?.delta?.content;
+            if (content) {
+              controller.enqueue(new TextEncoder().encode(content));
+            }
+          }
+          controller.close();
+        } catch (error) {
+          controller.error(error);
+        }
+      },
+      cancel() {
+        stream.controller.abort();
+      },
+    });
   } catch (error: unknown) {
     // Re-throw our own typed errors as-is
     if (

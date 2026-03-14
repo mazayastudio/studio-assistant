@@ -16,6 +16,7 @@ interface ChatSidebarProps {
   onNewChat: () => void;
   isOpen: boolean;
   onClose: () => void;
+  onOpenSettings: () => void;
 }
 
 export default function ChatSidebar({
@@ -25,6 +26,7 @@ export default function ChatSidebar({
   onNewChat,
   isOpen,
   onClose,
+  onOpenSettings,
 }: ChatSidebarProps) {
   return (
     <>
@@ -98,8 +100,8 @@ export default function ChatSidebar({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-zinc-800 p-3">
-          <div className="flex items-center gap-3 rounded-xl px-3 py-2.5">
+        <div className="border-t border-zinc-800 p-3 flex items-center justify-between">
+          <div className="flex items-center gap-3 rounded-xl px-2 py-2">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-bold text-zinc-900">
               SA
             </div>
@@ -108,6 +110,16 @@ export default function ChatSidebar({
               <span className="text-[11px] text-zinc-500">v0.1</span>
             </div>
           </div>
+          <button
+            onClick={onOpenSettings}
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
+            aria-label="Settings"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
         </div>
       </aside>
     </>
