@@ -35,7 +35,8 @@ const SYSTEM_PROMPT =
  * - Throws typed errors so the route handler can map them to HTTP statuses.
  */
 export async function sendChatMessage(
-  messages: ChatMessageInput[]
+  messages: ChatMessageInput[],
+  systemPromptOverride?: string
 ): Promise<string> {
   // 1. Guard: API key must be present
   const apiKey = process.env.OPENAI_API_KEY;
@@ -49,8 +50,10 @@ export async function sendChatMessage(
   const openai = new OpenAI({ apiKey });
 
   // 3. Convert messages to OpenAI format
+  const activeSystemPrompt = systemPromptOverride ?? SYSTEM_PROMPT;
+
   const openaiMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: activeSystemPrompt },
     ...messages.map((msg) => ({
       role: msg.role as "user" | "assistant",
       content: msg.content,

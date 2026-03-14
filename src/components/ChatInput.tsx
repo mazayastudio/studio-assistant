@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 
 interface ChatInputProps {
   value: string;
@@ -9,6 +9,21 @@ interface ChatInputProps {
   isLoading: boolean;
 }
 
+const COMMAND_HINTS = [
+  {
+    command: "/write-dialogue",
+    template: "/write-dialogue [character] [scenario]",
+    description: "Generate professional game dialogue",
+    icon: "🎭",
+  },
+  {
+    command: "/asset-description",
+    template: "/asset-description [type] [style]",
+    description: "Generate visual asset description for art team",
+    icon: "🎨",
+  },
+];
+
 export default function ChatInput({
   value,
   onChange,
@@ -16,6 +31,7 @@ export default function ChatInput({
   isLoading,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [showHints, setShowHints] = useState(false);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -26,6 +42,16 @@ export default function ChatInput({
     }
   }, [value]);
 
+  // Show command hints when user types "/"
+  useEffect(() => {
+    const trimmed = value.trimStart();
+    if (trimmed.startsWith("/") && !trimmed.includes("[")) {
+      setShowHints(true);
+    } else {
+      setShowHints(false);
+    }
+  }, [value]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -33,13 +59,79 @@ export default function ChatInput({
         onSend();
       }
     }
+    // Close hints on Escape
+    if (e.key === "Escape") {
+      setShowHints(false);
+    }
   };
+
+  const handleSelectHint = (template: string) => {
+    onChange(template);
+    setShowHints(false);
+    textareaRef.current?.focus();
+  };
+
+  // Filter hints based on current input
+  const filteredHints = COMMAND_HINTS.filter((h) =>
+    h.command.startsWith(value.trimStart().split(" ")[0].toLowerCase())
+  );
 
   return (
     <div
-      className="w-full px-4 pb-4 pt-2 md:px-6"
+      className="relative w-full px-4 pb-4 pt-2 md:px-6"
       style={{ background: "var(--bg-primary)" }}
     >
+      {/* Command hints dropdown */}
+      {showHints && filteredHints.length > 0 && (
+        <div
+          className="absolute bottom-full left-4 right-4 z-10 mb-2 overflow-hidden rounded-xl md:left-6 md:right-6"
+          style={{
+            background: "var(--bg-secondary)",
+            border: "1px solid var(--border-color)",
+            boxShadow: "0 -4px 20px rgba(0,0,0,0.3)",
+          }}
+        >
+          <div className="px-3 py-2">
+            <span
+              className="text-[10px] font-semibold uppercase tracking-wider"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Commands
+            </span>
+          </div>
+          {filteredHints.map((hint) => (
+            <button
+              key={hint.command}
+              onClick={() => handleSelectHint(hint.template)}
+              className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors duration-150"
+              style={{ borderTop: "1px solid var(--border-subtle)" }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "var(--bg-tertiary)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+            >
+              <span className="mt-0.5 text-base">{hint.icon}</span>
+              <div className="flex flex-col gap-0.5">
+                <code
+                  className="text-xs font-medium"
+                  style={{ color: "var(--accent-primary)" }}
+                >
+                  {hint.template}
+                </code>
+                <span
+                  className="text-[11px]"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  {hint.description}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div
         className="mx-auto flex max-w-3xl items-end gap-3 rounded-2xl px-4 py-3 transition-all duration-200"
         style={{
@@ -53,7 +145,7 @@ export default function ChatInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isLoading ? "Waiting for response..." : "Type a message..."}
+          placeholder={isLoading ? "Waiting for response..." : "Type a message or / for commands..."}
           disabled={isLoading}
           rows={1}
           className="max-h-[150px] flex-1 resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-[var(--text-muted)] disabled:cursor-not-allowed disabled:opacity-50"

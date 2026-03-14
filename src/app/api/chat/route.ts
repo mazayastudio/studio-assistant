@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendChatMessage, ChatMessageInput } from "@/lib/llm";
 import { AppError, ValidationError } from "@/lib/errors";
+import { parseCommand } from "@/lib/commands";
 
 // ────────────────────────────────────────────
 // Constants
@@ -133,10 +134,26 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     // 2. Validate
     const messages = validateRequestBody(body);
 
-    // 3. Call LLM
-    const assistantContent = await sendChatMessage(messages);
+    // 3. Detect slash commands in the last user message
+    const lastMessage = messages[messages.length - 1];
+    const parsed = parseCommand(lastMessage.content);
 
-    // 4. Return success
+    let finalMessages = messages;
+    let systemPromptOverride: string | undefined;
+
+    if (parsed) {
+      // Replace the last user message content with the parsed version
+      finalMessages = [
+        ...messages.slice(0, -1),
+        { ...lastMessage, content: parsed.userContent },
+      ];
+      systemPromptOverride = parsed.systemPrompt;
+    }
+
+    // 4. Call LLM (with optional command-specific system prompt)
+    const assistantContent = await sendChatMessage(finalMessages, systemPromptOverride);
+
+    // 5. Return success
     return successResponse(assistantContent);
   } catch (error: unknown) {
     // Handle our typed errors
