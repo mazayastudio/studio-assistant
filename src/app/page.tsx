@@ -24,13 +24,45 @@ function formatTime(date: Date) {
   });
 }
 
+const STORAGE_KEYS = {
+  sessions: "studio-assistant-sessions",
+  activeChatId: "studio-assistant-active-chat",
+} as const;
+
+function loadFromSession<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const stored = sessionStorage.getItem(key);
+    return stored ? (JSON.parse(stored) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export default function Home() {
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<ChatSession[]>(() =>
+    loadFromSession(STORAGE_KEYS.sessions, [])
+  );
+  const [activeChatId, setActiveChatId] = useState<string | null>(() =>
+    loadFromSession(STORAGE_KEYS.activeChatId, null)
+  );
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // ─── Persist to sessionStorage on changes ───
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(STORAGE_KEYS.sessions, JSON.stringify(sessions));
+    } catch { /* storage full — silently ignore */ }
+  }, [sessions]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(STORAGE_KEYS.activeChatId, JSON.stringify(activeChatId));
+    } catch { /* silently ignore */ }
+  }, [activeChatId]);
 
   // Get active session messages
   const activeSession = sessions.find((s) => s.id === activeChatId);
